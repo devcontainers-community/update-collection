@@ -14,6 +14,7 @@ async function getAllThings(repo: string): Promise<string[]> {
     `owner:${owner} /${name}\\/.+/ package_type:container`
   );
   url.searchParams.set("type", "registrypackages");
+  console.log(url)
   const response = await fetch(url);
   return (await response.json()).payload.results
     .map((x) => x.name)
@@ -68,6 +69,8 @@ const devcontainerCollection = {
   templates: [] as any[],
 };
 const ids = await getAllThings(collection);
+console.log(ids)
+
 for (const id of ids) {
   try {
     const devcontainerFeature = await getFeatureManifest(
