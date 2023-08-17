@@ -36,7 +36,7 @@ const devcontainerCollection = {
 };
 
 for (const id of ids) {
-  const image = collection.replace(/:.*?$/, id + ":latest")
+  const image = collection.replace(/:.*?$/, `/${id}:latest`)
   const manifest = JSON.parse(
     (await $`oras manifest fetch ${image}`).toString()
   );
