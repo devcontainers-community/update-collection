@@ -1,3 +1,4 @@
 *.sh eol=lf
 mainw eol=lf
 main.ts eol=lf
+action.yml eol=lf

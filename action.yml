@@ -1,5 +1,6 @@
 name: Update collection index
-description: 🕷 Crawl all namespaced features and templates to update the collection index
+description:
+  🕷 Crawl all namespaced features and templates to update the collection index
 branding:
   icon: book
   color: red
