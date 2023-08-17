@@ -61,6 +61,10 @@ if (!collection.includes(":")) {
 }
 console.log("resolved collection", collection);
 
+if (!/^ghcr\.io\/.*?\/.*?$/.test(collection)) {
+  throw new DOMException("Only ghcr.io things are supported right now")
+}
+
 const devcontainerCollection = {
   sourceInformation: {
     source: "devcontainer-cli",
@@ -68,7 +72,7 @@ const devcontainerCollection = {
   features: [] as any[],
   templates: [] as any[],
 };
-const ids = await getAllThings(collection);
+const ids = await getAllThings(collection.match(/^ghcr\.io\/(.*?\/.*?)$/)[1]);
 console.log(ids)
 
 for (const id of ids) {
