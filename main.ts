@@ -6,64 +6,26 @@ import process from "node:process";
 import { join } from "node:path";
 import * as core from "npm:@actions/core";
 
-async function getAllThings(repo: string): Promise<string[]> {
-  const [owner, name] = repo.split("/");
-  const url = new URL("https://github.com/search");
-  url.searchParams.set(
-    "q",
-    `owner:${owner} /${name}\\/.+/ package_type:container`
-  );
-  url.searchParams.set("type", "registrypackages");
-  console.log(url.href)
-  const response = await fetch(url);
-  return (await response.json()).payload.results
-    .map((x) => x.name)
-    .filter((f) => f !== name)
-    .map((f) => f.split("/")[1]);
-}
-
-async function getFeatureManifest(image: string): Promise<any> {
-  if (!image.endsWith(":latest")) {
-    image += ":latest";
-  }
-
-  const imageManifest = JSON.parse(
-    (await $`oras manifest fetch ${image}`).toString()
-  );
-  return JSON.parse(imageManifest.annotations["dev.containers.metadata"]);
-}
-
-async function getTemplateManifest(image: string): Promise<any> {
-  if (!image.endsWith(":latest")) {
-    image += ":latest";
-  }
-  const basename = image.split("/").pop().split(":")[0];
-
-  const tempDirPath = temporaryDirectory();
-  const oldCWD = $.cwd;
-  $.cwd = tempDirPath;
-  let templateManifest: any;
-  try {
-    await $`oras pull ${image}`;
-    await $`tar -xvf devcontainer-template-${basename}.tgz`;
-    templateManifest = JSON.parse(
-      await readFile(join($.cwd, "devcontainer-template.json"))
-    );
-  } finally {
-    $.cwd = oldCWD;
-  }
-  return templateManifest;
-}
-
 let collection = core.getInput("collection");
 if (!collection.includes(":")) {
   collection += ":latest";
 }
-console.log("resolved collection", collection);
+console.log("collection", collection);
 
-if (!/^ghcr\.io\/.*?\/.*?:.*?$/.test(collection)) {
-  throw new DOMException("Only ghcr.io things are supported right now")
-}
+const [, owner, name] = collection.match(/^ghcr\.io\/([\w\-]*?)\/([\w\.\-]*?):.*?$/)
+const url = new URL("https://github.com/search");
+url.searchParams.set(
+  "q",
+  `owner:${owner} /${name}\\/.+/ package_type:container`
+);
+url.searchParams.set("type", "registrypackages");
+console.log(url.href)
+const response = await fetch(url);
+const ids = (await response.json()).payload.results
+  .map((x) => x.name)
+  .filter((f) => f !== name)
+  .map((f) => f.split("/")[1]);
+console.log(ids)
 
 const devcontainerCollection = {
   sourceInformation: {
@@ -72,26 +34,31 @@ const devcontainerCollection = {
   features: [] as any[],
   templates: [] as any[],
 };
-const ids = await getAllThings(collection.match(/^ghcr\.io\/(.*?\/.*?):.*?$/)[1]);
-console.log(ids)
 
 for (const id of ids) {
-  try {
-    const devcontainerFeature = await getFeatureManifest(
-      `ghcr.io/${process.env.GITHUB_REPOSITORY}/${id}`
-    );
-    devcontainerCollection.features.push(devcontainerFeature);
-  } catch (error) {
-    console.warn(error);
-  }
-
-  try {
-    const devcontainerTemplate = await getTemplateManifest(
-      `ghcr.io/${process.env.GITHUB_REPOSITORY}/${id}`
-    );
-    devcontainerCollection.templates.push(devcontainerTemplate);
-  } catch (error) {
-    console.warn(error);
+  const image = collection.replace(/:.*?$/, id + ":latest")
+  const manifest = JSON.parse(
+    (await $`oras manifest fetch ${image}`).toString()
+  );
+  if (manifest.annotations["com.github.package.type"] === "devcontainer_feature") {
+    const f = JSON.parse(manifest.annotations["dev.containers.metadata"])
+    devcontainerCollection.features.push(f)
+  } else if (manifest.annotations["com.github.package.type"] === "devcontainer_template") {
+    const basename = image.split("/").pop().split(":")[0];
+    const tempDirPath = temporaryDirectory();
+    const oldCWD = $.cwd;
+    $.cwd = tempDirPath;
+    let templateManifest: any;
+    try {
+      await $`oras pull ${image}`;
+      await $`tar -xvf devcontainer-template-${basename}.tgz`;
+      templateManifest = JSON.parse(
+        await readFile(join($.cwd, "devcontainer-template.json"))
+      );
+    } finally {
+      $.cwd = oldCWD;
+    }
+    devcontainerCollection.templates.push(templateManifest)
   }
 }
 
@@ -119,6 +86,13 @@ for (const id of ids) {
       seenIds.add(f.id);
     }
   }
+}
+
+if (!devcontainerCollection.templates.length) {
+  delete devcontainerCollection.templates
+}
+if (!devcontainerCollection.features.length) {
+  delete devcontainerCollection.features
 }
 
 const tempDirPath = temporaryDirectory();
