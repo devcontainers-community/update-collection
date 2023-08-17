@@ -4,7 +4,7 @@ import { $ } from "npm:zx";
 import { temporaryDirectory, temporaryWrite } from "npm:tempy";
 import process from "node:process";
 import { join } from "node:path";
-import * as core from "npm:@actions/core"
+import * as core from "npm:@actions/core";
 
 async function getAllThings(repo: string): Promise<string[]> {
   const [owner, name] = repo.split("/");
@@ -36,20 +36,22 @@ async function getTemplateManifest(image: string): Promise<any> {
   if (!image.endsWith(":latest")) {
     image += ":latest";
   }
-  const basename = image.split("/").pop().split(":")[0]
+  const basename = image.split("/").pop().split(":")[0];
 
-  const tempDirPath = temporaryDirectory()
-  const oldCWD = $.cwd
-  $.cwd = tempDirPath
-  let templateManifest: any
+  const tempDirPath = temporaryDirectory();
+  const oldCWD = $.cwd;
+  $.cwd = tempDirPath;
+  let templateManifest: any;
   try {
-    await $`oras pull ${image}`
-    await $`tar -xvf devcontainer-template-${basename}.tgz`
-    templateManifest = JSON.parse(await readFile(join($.cwd, "devcontainer-template.json")))
+    await $`oras pull ${image}`;
+    await $`tar -xvf devcontainer-template-${basename}.tgz`;
+    templateManifest = JSON.parse(
+      await readFile(join($.cwd, "devcontainer-template.json"))
+    );
   } finally {
-    $.cwd = oldCWD
+    $.cwd = oldCWD;
   }
-  return templateManifest
+  return templateManifest;
 }
 
 let collection = core.getInput("collection");
@@ -73,40 +75,44 @@ for (const id of ids) {
     );
     devcontainerCollection.features.push(devcontainerFeature);
   } catch (error) {
-    console.warn(error)
+    console.warn(error);
   }
-  
+
   try {
     const devcontainerTemplate = await getTemplateManifest(
       `ghcr.io/${process.env.GITHUB_REPOSITORY}/${id}`
     );
     devcontainerCollection.templates.push(devcontainerTemplate);
   } catch (error) {
-    console.warn(error)
+    console.warn(error);
   }
 }
 
-{const seenIds = new Set()
-for (let i = 0; i < devcontainerCollection.features.length; i++) {
-  const f = devcontainerCollection.features[i]
-  if (seenIds.has(f.id)) {
-    devcontainerCollection.features.splice(i, 1);
-    i--;
-  } else {
-    seenIds.add(f.id)
+{
+  const seenIds = new Set();
+  for (let i = 0; i < devcontainerCollection.features.length; i++) {
+    const f = devcontainerCollection.features[i];
+    if (seenIds.has(f.id)) {
+      devcontainerCollection.features.splice(i, 1);
+      i--;
+    } else {
+      seenIds.add(f.id);
+    }
   }
-}}
+}
 
-{const seenIds = new Set()
-for (let i = 0; i < devcontainerCollection.templates.length; i++) {
-  const f = devcontainerCollection.templates[i]
-  if (seenIds.has(f.id)) {
-    devcontainerCollection.templates.splice(i, 1);
-    i--;
-  } else {
-    seenIds.add(f.id)
+{
+  const seenIds = new Set();
+  for (let i = 0; i < devcontainerCollection.templates.length; i++) {
+    const f = devcontainerCollection.templates[i];
+    if (seenIds.has(f.id)) {
+      devcontainerCollection.templates.splice(i, 1);
+      i--;
+    } else {
+      seenIds.add(f.id);
+    }
   }
-}}
+}
 
 const tempDirPath = temporaryDirectory();
 process.chdir(tempDirPath);
