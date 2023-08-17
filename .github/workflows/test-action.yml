@@ -1,0 +1,55 @@
+name: Test action
+on:
+  push:
+    branches: "main"
+    paths-ignore:
+      - .gitignore
+      - .gitattributes
+      - LICENSE
+      - README.md
+      - .github/**
+      - "!.github/workflows/test-action.yml"
+  pull_request:
+    paths-ignore:
+      - .gitignore
+      - .gitattributes
+      - LICENSE
+      - README.md
+      - .github/**
+      - "!.github/workflows/test-action.yml"
+concurrency: ${{ github.workflow }}
+jobs:
+  publish-test:
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: devcontainers-community/publish-feature@v1
+        with:
+          image: ghcr.io/${{ github.repository }}/*
+  update-collection:
+    needs: publish-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./
+      - uses: oras-project/setup-oras@v1
+      - run: |
+          pushd "$(mktemp -d)"
+          oras manifest fetch ghcr.io/${{ github.repository }}:latest | jq
+          oras pull ghcr.io/${{ github.repository }}:latest
+          tree -a
+          jq '' devcontainer-collection.json
+      - run: |
+          pushd "$(mktemp -d)"
+          oras manifest fetch ghcr.io/devcontainers/features:latest | jq
+          oras pull ghcr.io/devcontainers/features:latest
+          tree -a
+          jq '' devcontainer-collection.json

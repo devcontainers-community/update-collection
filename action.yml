@@ -1,0 +1,17 @@
+name: Update collection index
+description: 🕷 Crawl all namespaced features and templates to update the collection index
+branding:
+  icon: book
+  color: red
+inputs:
+  collection:
+    default: ghcr.io/${{ github.repository }}
+runs:
+  using: composite
+  steps:
+    - uses: oras-project/setup-oras@v1
+    - id: main
+      run: '"$GITHUB_ACTION_PATH/mainw"'
+      shell: bash
+      env:
+        INPUT_COLLECTION: ${{ inputs.collection }}
